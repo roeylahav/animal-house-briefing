@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animal House Briefing - Azrieli Faculty of Medicine</title>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; background: #000; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        
+        /* Start Screen Overlay */
+        #start-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 1000;
+            display: flex; justify-content: center; align-items: center;
+            flex-direction: column; color: white; text-align: center;
+        }
+        .start-btn {
+            background: #0070C0; color: white; border: none; padding: 20px 50px;
+            font-size: 24px; font-weight: bold; border-radius: 10px; cursor: pointer;
+            box-shadow: 0 4px 20px rgba(0,112,192,0.5); transition: 0.3s;
+        }
+        .start-btn:hover { background: #005a9e; transform: scale(1.05); }
+
+        /* Main Content */
+        .slide-container { position: relative; width: 100vw; height: 100vh; display: none; justify-content: center; align-items: center; }
+        .active { display: flex; }
+        img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        
+        .controls { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: center; align-items: center; gap: 20px; z-index: 10; }
+        .btn { background: #0070C0; color: white; border: none; padding: 12px 35px; border-radius: 5px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .btn:disabled { background: #555; cursor: not-allowed; opacity: 0.6; }
+        .btn-back { background: #444; }
+
+        .audio-player { position: absolute; bottom: 90px; width: 450px; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); padding: 15px; border-radius: 15px; display: flex; flex-direction: column; align-items: center; left: 50%; transform: translateX(-50%); border: 1px solid rgba(255,255,255,0.1); }
+        .progress-container { width: 100%; background: rgba(255,255,255,0.2); height: 6px; border-radius: 3px; margin-top: 10px; overflow: hidden; }
+        .progress-bar { width: 0%; height: 100%; background: #0070C0; }
+        .status-text { color: #aaa; font-size: 11px; margin-top: 8px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; }
+        #timer { color: white; font-family: monospace; font-size: 14px; }
+        #play-pause-btn { background:none; border:none; color:white; cursor:pointer; font-size:24px; }
+    </style>
+</head>
+<body>
+
+    <div id="start-overlay">
+        <h1 style="margin-bottom: 30px;">Animal House Briefing</h1>
+        <p style="margin-bottom: 40px; color: #ccc;">Please click below to begin the mandatory safety briefing.</p>
+        <button class="start-btn" onclick="startBriefing()">START BRIEFING</button>
+    </div>
+
+    <div id="slides-wrapper"></div>
+
+    <div class="audio-player">
+        <div style="display: flex; align-items: center; gap: 20px;">
+            <button onclick="togglePlay()" id="play-pause-btn">❚❚</button>
+            <span id="timer">00:00 / 00:00</span>
+        </div>
+        <div class="progress-container"><div id="progress" class="progress-bar"></div></div>
+        <div id="status" class="status-text">SYSTEM READY</div>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-back" id="back-btn" onclick="changeSlide(-1)">BACK</button>
+        <button class="btn" id="next-btn" onclick="changeSlide(1)" disabled>NEXT SLIDE</button>
+    </div>
+
+    <audio id="main-audio"></audio>
+
+    <script>
+        const totalSlides = 13; 
+        let currentSlide = 1;
+        const audio = document.getElementById('main-audio');
+        const nextBtn = document.getElementById('next-btn');
+        const backBtn = document.getElementById('back-btn');
+        const progress = document.getElementById('progress');
+        const timer = document.getElementById('timer');
+        const statusText = document.getElementById('status');
+        const playPauseBtn = document.getElementById('play-pause-btn');
+
+        // Create Slides
+        const wrapper = document.getElementById('slides-wrapper');
+        for(let i=1; i<=totalSlides; i++) {
+            const div = document.createElement('div');
+            div.className = `slide-container ${i === 1 ? 'active' : ''}`;
+            div.id = `slide-${i}`;
+            div.innerHTML = `<img src="slide${i}.jpg" onerror="this.src='https://via.placeholder.com/1280x720?text=Slide+${i}+Not+Found'">`;
+            wrapper.appendChild(div);
+        }
+
+        function startBriefing() {
+            document.getElementById('start-overlay').style.display = 'none';
+            loadSlide(1);
+        }
+
+        function loadSlide(n) {
+            document.querySelectorAll('.slide-container').forEach(s => s.classList.remove('active'));
+            document.getElementById(`slide-${n}`).classList.add('active');
+            
+            backBtn.style.visibility = (n === 1) ? 'hidden' : 'visible';
+            nextBtn.disabled = true;
+            statusText.innerText = "Briefing in Progress...";
+            progress.style.width = "0%";
+            playPauseBtn.innerText = "❚❚";
+
+            audio.src = `${n}.mp3`;
+            audio.play().catch(e => {
+                console.error("Audio playback failed:", e);
+                statusText.innerText = "Click Play to Resume";
+                playPauseBtn.innerText = "▶";
+            });
+        }
+
+        function changeSlide(step) {
+            currentSlide += step;
+            if (currentSlide > totalSlides || currentSlide < 1) return;
+            loadSlide(currentSlide);
+        }
+
+        function togglePlay() {
+            if (audio.paused) { audio.play(); playPauseBtn.innerText = "❚❚"; }
+            else { audio.pause(); playPauseBtn.innerText = "▶"; }
+        }
+
+        audio.ontimeupdate = () => {
+            const pct = (audio.currentTime / audio.duration) * 100;
+            progress.style.width = pct + "%";
+            timer.innerText = `${formatTime(audio.currentTime)} / ${formatTime(audio.duration || 0)}`;
+        };
+
+        audio.onended = () => {
+            nextBtn.disabled = false;
+            statusText.innerText = "Section Complete - You May Proceed";
+            playPauseBtn.innerText = "▶";
+            if (currentSlide < totalSlides) {
+                setTimeout(() => { if(!audio.paused && audio.currentTime === 0) changeSlide(1); }, 1500);
+            }
+        };
+
+        function formatTime(secs) {
+            const mins = Math.floor(secs / 60);
+            const s = Math.floor(secs % 60);
+            return `${mins.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+    </script>
+</body>
+</html>
